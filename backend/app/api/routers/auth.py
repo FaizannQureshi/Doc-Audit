@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
 
-from app import tokens
+from app.state import tokens
 
 router = APIRouter()
 

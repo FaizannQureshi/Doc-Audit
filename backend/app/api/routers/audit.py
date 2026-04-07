@@ -5,11 +5,15 @@ from fastapi import APIRouter, HTTPException
 from googleapiclient.errors import HttpError
 from pydantic import BaseModel, Field
 
-from app import tokens
-from app.audit_engine import run_folder_audit
-from app.drive_service import folder_web_link, get_drive_service, list_files_recursive
-from app.sheets_export import append_audit_row, create_audit_spreadsheet
-from app.standards import EXPIRY_WARNING_DAYS, FOLDER_STRUCTURE_TEMPLATE, REQUIRED_DOCUMENT_TYPES
+from app.domain.audit_engine import run_folder_audit
+from app.domain.standards import (
+    EXPIRY_WARNING_DAYS,
+    FOLDER_STRUCTURE_TEMPLATE,
+    REQUIRED_DOCUMENT_TYPES,
+)
+from app.services.drive_service import folder_web_link, get_drive_service, list_files_recursive
+from app.services.sheets_export import append_audit_row, create_audit_spreadsheet
+from app.state import tokens
 
 router = APIRouter()
 

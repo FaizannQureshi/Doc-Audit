@@ -7,7 +7,7 @@ from typing import Any
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 
-from app.audit_engine import AuditResult
+from app.domain.audit_engine import AuditResult
 
 
 def get_sheets_service(credentials: Credentials):

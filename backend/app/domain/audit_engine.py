@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
-from app.standards import (
+from app.domain.standards import (
     EXPIRY_WARNING_DAYS,
     REQUIRED_DOCUMENT_TYPES,
     DocumentType,
