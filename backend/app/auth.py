@@ -8,7 +8,10 @@ from app import tokens
 
 router = APIRouter()
 
-SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
+SCOPES = [
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+]
 
 
 def _client_config():
