@@ -1,18 +1,24 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from googleapiclient.discovery import build
+
+from app import tokens
 
 router = APIRouter()
 
-# TEMP: replace with real token storage later
-ACCESS_TOKEN = None
 
 @router.get("/files")
 def list_files():
-    service = build("drive", "v3", developerKey=ACCESS_TOKEN)
+    if tokens.drive_credentials is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Connect Google Drive first (complete OAuth from /auth/login).",
+        )
+    service = build("drive", "v3", credentials=tokens.drive_credentials)
 
-    results = service.files().list(
-        pageSize=20,
-        fields="files(id, name)"
-    ).execute()
+    results = (
+        service.files()
+        .list(pageSize=20, fields="files(id, name)")
+        .execute()
+    )
 
     return results.get("files", [])

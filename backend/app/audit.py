@@ -1,8 +1,14 @@
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 router = APIRouter()
 
 REQUIRED_DOCS = ["Passport", "Police Clearance", "Medical"]
+
+
+class FileItem(BaseModel):
+    name: str
+
 
 def classify(file_name):
     file_name = file_name.lower()
@@ -14,12 +20,13 @@ def classify(file_name):
         return "Medical"
     return "Unknown"
 
+
 @router.post("/run")
-def run_audit(files: list):
+def run_audit(files: list[FileItem]):
     found = set()
 
     for f in files:
-        doc_type = classify(f["name"])
+        doc_type = classify(f.name)
         if doc_type != "Unknown":
             found.add(doc_type)
 
