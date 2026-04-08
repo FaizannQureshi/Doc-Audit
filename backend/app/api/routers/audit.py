@@ -1,10 +1,12 @@
 import os
 from dataclasses import asdict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from googleapiclient.errors import HttpError
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
+from app.core.deps import AuthedContext, get_authed_context, get_db
 from app.domain.audit_engine import run_folder_audit
 from app.domain.standards import (
     EXPIRY_WARNING_DAYS,
@@ -14,6 +16,7 @@ from app.domain.standards import (
 from app.services.drive_service import folder_web_link, get_drive_service, list_files_recursive
 from app.services.sheets_export import append_audit_row, create_audit_spreadsheet
 from app.state import tokens
+from app.models import AuditRun, Finding
 
 router = APIRouter()
 
@@ -66,11 +69,18 @@ def get_standards():
 
 
 @router.post("/folder")
-def audit_folder(body: FolderAuditRequest):
+def audit_folder(
+    body: FolderAuditRequest,
+    ctx: AuthedContext = Depends(get_authed_context),
+    db: Session = Depends(get_db),
+):
     """
     Scan a Drive folder tree: missing / expired / expiring / mislabeled files,
     optional append to Google Sheets (Phase 1 audit log).
     """
+    # Auth + tenancy (Phase 2): context is used to persist audit history.
+    # NOTE: Drive creds are still process-local in Phase 1; Phase 2+ will persist
+    # per-org connections in the DB.
     creds = _require_creds()
     service = get_drive_service(creds)
     try:
@@ -94,6 +104,39 @@ def audit_folder(body: FolderAuditRequest):
         folder_url=folder_url,
         files=files,
     )
+
+    # Persist the run + findings (Phase 2)
+    run = AuditRun(
+        org_id=ctx.org.id,
+        user_id=ctx.user.id,
+        client_name=result.client_name,
+        folder_id=result.folder_id,
+        folder_url=result.folder_url,
+        status=result.status,
+    )
+    db.add(run)
+    db.flush()
+
+    def add_finding(ftype: str, severity: str, message: str, metadata: dict):
+        db.add(
+            Finding(
+                audit_run_id=run.id,
+                org_id=ctx.org.id,
+                type=ftype,
+                severity=severity,
+                message=message,
+                details=metadata,
+            )
+        )
+
+    for m in result.missing_documents:
+        add_finding("missing", "critical", f"Missing required document: {m}", {"document": m})
+    for row in result.expired_documents:
+        add_finding("expired", "critical", "Expired document detected", row)
+    for row in result.expiring_soon:
+        add_finding("expiring_soon", "warning", "Document expiring soon", row)
+    for row in result.mislabeled_or_suspicious:
+        add_finding("flag", "warning", "Naming/structure flag", row)
 
     sheet_url: str | None = None
     sheet_error: str | None = None
@@ -121,6 +164,7 @@ def audit_folder(body: FolderAuditRequest):
 
     return {
         "audit": asdict(result),
+        "audit_run_id": run.id,
         "sheet_url": sheet_url,
         "sheet_error": sheet_error,
         "new_spreadsheet_id": new_spreadsheet_id,

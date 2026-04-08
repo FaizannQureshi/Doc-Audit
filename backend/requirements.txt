@@ -4,3 +4,6 @@ google-auth
 google-auth-oauthlib
 google-api-python-client
 python-dotenv
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+pydantic-settings>=2.0
